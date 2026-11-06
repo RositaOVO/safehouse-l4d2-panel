@@ -1,0 +1,30 @@
+[Unit]
+Description=Safehouse L4D2 Server Management Panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=safehouse
+Group=safehouse
+WorkingDirectory=/opt/safehouse
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/safehouse/panel.env
+ExecStart=/usr/bin/node --expose-gc /opt/safehouse/src/server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=45
+# Games are independently identified and reconnected after panel restarts.
+KillMode=process
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ReadWritePaths=/var/lib/safehouse /srv/l4d2
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

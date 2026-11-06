@@ -1,0 +1,11 @@
+# Replace this domain with your own. Caddy obtains and renews HTTPS certificates.
+panel.example.com {
+    encode zstd gzip
+    request_body {
+        max_size 2300MB
+    }
+    reverse_proxy 127.0.0.1:8787 {
+        header_up Host {host}
+        header_up X-Forwarded-Proto https
+    }
+}

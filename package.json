@@ -1,0 +1,40 @@
+{
+  "name": "safehouse-l4d2-panel",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^24.22.1 || ^26.12.1"
+  },
+  "scripts": {
+    "start": "node --expose-gc src/server.js",
+    "init": "node src/cli.js init",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:e2e": "node test/smoke.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "dependencies": {
+    "express": "5.3.0",
+    "helmet": "8.3.0",
+    "https-proxy-agent": "^9.1.0",
+    "multer": "2.5.0",
+    "tar": "^7.5.22",
+    "yauzl": "3.4.0",
+    "yazl": "3.3.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
+  },
+  "description": "Windows 与 Linux 求生之路 2 服务器管理面板：Steam 工坊、地图、插件与安全运维",
+  "license": "MIT",
+  "author": "RositaOVO",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RositaOVO/safehouse-l4d2-panel.git"
+  },
+  "homepage": "https://github.com/RositaOVO/safehouse-l4d2-panel#readme",
+  "bugs": {
+    "url": "https://github.com/RositaOVO/safehouse-l4d2-panel/issues"
+  }
+}

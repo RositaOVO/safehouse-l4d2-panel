@@ -1,0 +1,11 @@
+import test from'node:test';import assert from'node:assert/strict';import http from'node:http';import{spawn}from'node:child_process';import{gzipSync}from'node:zlib';import{projectRoot}from'../src/core.js';
+test('HTTP 安全：压缩 JSON 带尾随数据不会杀死进程，随后正常请求仍能处理',{timeout:10000},async()=>{
+ const source=`import express from 'express';const app=express();app.use(express.json({limit:'1200kb'}));app.post('/probe',(req,res)=>res.json({ok:true,value:req.body.value}));app.use((error,req,res,next)=>res.status(error.status||400).json({error:'rejected'}));const server=app.listen(0,'127.0.0.1',()=>console.log('ready:'+server.address().port));process.on('SIGTERM',()=>server.close(()=>process.exit(0)));`;
+ const child=spawn(process.execPath,['--input-type=module','-e',source],{cwd:projectRoot,windowsHide:true,stdio:['ignore','pipe','pipe']});let stderr='';child.stderr.on('data',b=>stderr=(stderr+b).slice(-4000));
+ try{
+  const port=await new Promise((resolve,reject)=>{let output='';const timer=setTimeout(()=>reject(new Error('HTTP fixture startup timeout')),4000);child.stdout.on('data',bytes=>{output+=bytes;const found=output.match(/ready:(\d+)/);if(found){clearTimeout(timer);resolve(Number(found[1]));}});child.once('error',reject);child.once('exit',code=>{clearTimeout(timer);reject(new Error('HTTP fixture exited: '+code+' '+stderr));});});
+  const request=(bytes,encoding)=>new Promise((resolve,reject)=>{const req=http.request({host:'127.0.0.1',port,path:'/probe',method:'POST',headers:{'Content-Type':'application/json','Content-Length':bytes.length,...(encoding?{'Content-Encoding':encoding}:{})},timeout:2000},res=>{let body='';res.on('data',b=>body+=b);res.on('end',()=>resolve({status:res.statusCode,body}));});req.on('error',reject);req.on('timeout',()=>req.destroy(new Error('HTTP fixture timeout')));req.end(bytes);});
+  const malformed=Buffer.concat([gzipSync(Buffer.from('{"value":1}')),Buffer.from('trailing-bytes')]);await request(malformed,'gzip');await new Promise(r=>setTimeout(r,150));assert.equal(child.exitCode,null,stderr);
+  const result=await request(Buffer.from('{"value":2}'));assert.equal(result.status,200);assert.equal(JSON.parse(result.body).value,2);assert.equal(child.exitCode,null);
+ }finally{child.kill();await new Promise(resolve=>{if(child.exitCode!==null||child.signalCode!==null)return resolve();child.once('exit',resolve);});}
+});
