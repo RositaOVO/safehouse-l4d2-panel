@@ -18,6 +18,7 @@ import {Previews}from'./previews.js';
 import {Maintenance}from'./maintenance.js';
 import {directURL}from'./direct-download.js';
 import {sendAnnouncement}from'./announcements.js';
+import { negotiateLocale, localizeMessage } from '../public/i18n.js';
 import { UploadReservations, DISK_RESERVE } from './disk-space.js';
 import { AppError, fail, id, sha256, projectRoot, hostMetrics, diskFree, redact } from './core.js';
 import { authorize, sessionAuth, csrfGuard, rateLimit, hashPassword, verifyPassword, newSession, roles } from './security.js';
@@ -36,6 +37,7 @@ export async function createApp(config) {
   for(const file of await fs.readdir(path.join(config.dataDir,'uploads'),{withFileTypes:true}))if(file.isFile()&&/^[a-f0-9]{32}$/.test(file.name))await fs.rm(path.join(config.dataDir,'uploads',file.name),{force:true});
   await servers.initialize(); await content.recover(); scheduler.start();
   const app = express(); app.disable('x-powered-by');
+  app.use('/api', (req,res,next) => {req.locale=negotiateLocale(req.get('accept-language'));res.setHeader('Content-Language',req.locale);res.vary('Accept-Language');next();});
   if (config.trustProxy) { if (config.trustProxy !== 'loopback') throw new Error('TRUST_PROXY 只允许 loopback；请让本机反向代理终止 TLS'); app.set('trust proxy', 'loopback'); }
   app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:', 'https://*.steamusercontent.com', 'https://*.steamstatic.com', 'https://steamuserimages-a.akamaihd.net'], connectSrc: ["'self'"], objectSrc: ["'none'"], frameAncestors: ["'none'"], formAction: ["'self'"], upgradeInsecureRequests: config.publicMode ? [] : null } }, strictTransportSecurity: config.publicMode ? { maxAge: 31536000, includeSubDomains: true } : false, crossOriginEmbedderPolicy: false }));
   app.use((req, res, next) => {
@@ -261,7 +263,7 @@ export async function createApp(config) {
     res.json(checks);
   });
   app.use('/api', api);
-  app.use('/api', (req, res) => res.status(404).json({ error: '接口不存在' }));
+  app.use('/api', (req, res) => res.status(404).json({ error: localizeMessage('接口不存在',req.locale) }));
   app.use(express.static(path.join(projectRoot, 'public'), { dotfiles: 'deny', index: 'index.html', etag: false }));
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
@@ -269,7 +271,7 @@ export async function createApp(config) {
     const message = status >= 500 && !(error instanceof AppError) ? '操作失败，请查看服务端日志' : error instanceof multer.MulterError ? `上传失败：${error.code}` : error.message;
     if (status >= 500) console.error(redact(error.stack || error.message));
     if (req.user && status === 403) audit(req, 'access.denied', req.path);
-    res.status(status).json({ error: message, code: error.code || 'REQUEST_FAILED' });
+    res.status(status).json({ error: localizeMessage(message,req.locale), code: error.code || 'REQUEST_FAILED' });
   });
   async function close() { scheduler.close(); servers.close(); await tasks.close(); store.close(); }
   return { app, config, store, servers, tasks, workshop, content, configuration, scheduler,maintenance, close };

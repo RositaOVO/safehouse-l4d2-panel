@@ -82,3 +82,11 @@ test('上传真实空间不足：返回可用量与需求，上传目录不留�
   assert.equal(result.res.status, 400); assert.match(result.data.error, /空间不足.*本次请求需要/);
   assert.deepEqual(await fs.readdir(path.join(root, 'data/uploads')), []);
 });
+
+test('API 多语言：按请求分别翻译错误，保留错误码与权限，不串改其他用户语言',async()=>{
+ let r=await request('/servers',{session:null,headers:{'Accept-Language':'en-US'}});assert.equal(r.res.status,401);assert.equal(r.data.error,'Please sign in');assert.equal(r.res.headers.get('content-language'),'en');assert(r.res.headers.get('vary').includes('Accept-Language'));
+ r=await request('/servers',{session:null,headers:{'Accept-Language':'zh-Hant'}});assert.equal(r.res.status,401);assert.equal(r.data.error,'請先登入');assert.equal(r.data.code,'REQUEST_FAILED');
+ r=await request('/servers',{session:null});assert.equal(r.data.error,'请先登录');
+ r=await request('/does-not-exist',{headers:{'Accept-Language':'en'}});assert.equal(r.res.status,404);assert.equal(r.data.error,'API endpoint not found');
+ const denied=await fetch(origin+'/api/servers',{method:'POST',headers:{'Content-Type':'application/json','Accept-Language':'en',Origin:'https://evil.test'},body:'{}'});assert.equal(denied.status,403);assert.equal((await denied.json()).error,'Request origin validation failed');
+});
